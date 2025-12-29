@@ -31,7 +31,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Route
+// Route: Get Hjertesager records
 router.get("/get-records", async (req, res) => {
   try {
     const airtableRecords = await base(process.env.AIRTABLE_TABLE_NAME)
@@ -43,6 +43,33 @@ router.get("/get-records", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch Airtable records" });
+  }
+});
+
+// Route: Get Foreninger (associations)
+router.get("/get-foreninger", async (req, res) => {
+  try {
+    const airtableRecords = await base("Forening")
+      .select({
+        maxRecords: 100,
+        fields: [
+          "Forening - By",
+          "creditro_verified",
+          "Forening - Logo",
+          "Forening - Postnummer",
+          "Foreningskategori",
+          "Foreningsnavn",
+          "Foreningstype",
+          "Samarbejdsaftale underskrevet"
+        ]
+      })
+      .all();
+
+    const records = airtableRecords.map((r) => r.fields);
+    res.json({ data: records });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch Forening records" });
   }
 });
 
