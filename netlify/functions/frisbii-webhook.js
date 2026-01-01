@@ -26,9 +26,9 @@ exports.handler = async (event, context) => {
     // Handle different webhook event types
     const eventType = payload.event_type;
     
-    // Only update status when payment is actually authorized or settled
-    // NOT on subscription_created (which happens before payment)
-    if (eventType === "invoice_authorized" || 
+    // Update status when subscription is successfully created (payment completed)
+    if (eventType === "subscription_created" || 
+        eventType === "invoice_authorized" || 
         eventType === "invoice_settled") {
       
       // Frisbii sends subscription as a STRING (the handle) not an object
