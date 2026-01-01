@@ -75,6 +75,7 @@ router.get("/get-foreninger", async (req, res) => {
       .select({
         maxRecords: 100,
         fields: [
+          "association_uuid",
           "Forening - By",
           "creditro_verified",
           "Forening - Logo",
@@ -100,12 +101,13 @@ router.post("/create-donation-session", async (req, res) => {
   try {
     console.log("[create-donation-session] Request body:", JSON.stringify(req.body));
     
-    const { foreningId, foreningNavn, tierId, tierName, tierPrice, customer } = req.body || {};
+    const { foreningId, foreningNavn, foreningUuid, tierId, tierName, tierPrice, customer } = req.body || {};
 
     // Validate input - check for undefined/null explicitly (foreningId can be 0)
     const missingFields = [];
     if (foreningId === undefined || foreningId === null) missingFields.push("foreningId");
     if (!foreningNavn) missingFields.push("foreningNavn");
+    if (!foreningUuid) missingFields.push("foreningUuid");
     if (!tierId) missingFields.push("tierId");
     if (tierPrice === undefined || tierPrice === null) missingFields.push("tierPrice");
     
@@ -141,6 +143,7 @@ router.post("/create-donation-session", async (req, res) => {
         sessionId: sessionId,
         foreningId: Number(foreningId), // Number field in Airtable
         foreningNavn: foreningNavn,
+        association_uuid: foreningUuid, // Link to Forening table
         tierId: tierId, // Single select - must match an existing option
         tierPrice: Number(tierPrice), // Number field in Airtable
         status: "pending", // Single select - must match an existing option
