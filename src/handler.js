@@ -154,17 +154,17 @@ router.post("/create-donation-session", async (req, res) => {
 
       console.log("[create-donation-session] Creating Frisbii session for plan:", tierId);
       
-      // Reepay Checkout API for subscription signup
+      // Frisbii subscription session - subscription handle + plan
       const frisbiiPayload = {
-        plan: tierId,                    // Required: plan handle
-        subscription_handle: sessionId,  // Our session ID as subscription handle
+        subscription: sessionId,  // Our session ID becomes the subscription handle
+        plan: tierId,             // The plan to subscribe to
         accept_url: process.env.ACCEPT_URL || "https://stotmedhjerte.dk/tak",
         cancel_url: process.env.CANCEL_URL || "https://stotmedhjerte.dk/stoetteabonnement"
       };
       
       console.log("[create-donation-session] Frisbii payload:", JSON.stringify(frisbiiPayload));
 
-      const frisbiiResponse = await fetch("https://checkout-api.reepay.com/v1/session/recurring", {
+      const frisbiiResponse = await fetch("https://checkout-api.reepay.com/v1/session/subscription", {
         method: "POST",
         headers: {
           "Authorization": `Basic ${Buffer.from(process.env.FRISBII_PRIVATE_KEY + ":").toString("base64")}`,
