@@ -20,6 +20,19 @@ const allowlist = new Set([
 
 app.use(express.json()); // Parse JSON bodies
 
+// Workaround for serverless-http body parsing issues
+app.use((req, res, next) => {
+  // If body is a string (sometimes happens with serverless-http), parse it
+  if (typeof req.body === 'string' && req.body) {
+    try {
+      req.body = JSON.parse(req.body);
+    } catch (e) {
+      console.log("[body-parser] Failed to parse string body:", e.message);
+    }
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   console.log("[CORS] Request from origin:", origin, "Method:", req.method, "Path:", req.path);
@@ -161,4 +174,17 @@ router.post("/create-donation-session", async (req, res) => {
 
 app.use("/.netlify/functions/airtable", router);
 
-module.exports.handler = serverless(app);
+module.exports.handler = serverless(app, {
+  request: (request, event, context) => {
+    // Ensure body is properly passed through from Netlify event
+    if (event.body && typeof event.body === 'string') {
+      try {
+        request.body = JSON.parse(event.body);
+      } catch (e) {
+        request.body = event.body;
+      }
+    } else if (event.body) {
+      request.body = event.body;
+    }
+  }
+});
