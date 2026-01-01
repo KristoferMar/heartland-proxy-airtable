@@ -164,7 +164,7 @@ router.post("/create-donation-session", async (req, res) => {
       
       console.log("[create-donation-session] Frisbii payload:", JSON.stringify(frisbiiPayload));
 
-      const frisbiiResponse = await fetch("https://checkout-api.reepay.com/v1/session/subscription", {
+      const frisbiiResponse = await fetch("https://checkout-api.frisbii.com/v1/session/subscription", {
         method: "POST",
         headers: {
           "Authorization": `Basic ${Buffer.from(process.env.FRISBII_PRIVATE_KEY + ":").toString("base64")}`,
