@@ -98,7 +98,7 @@ router.post("/create-donation-session", async (req, res) => {
   try {
     console.log("[create-donation-session] Request body:", JSON.stringify(req.body));
     
-    const { foreningId, foreningNavn, tierId, tierPrice } = req.body || {};
+    const { foreningId, foreningNavn, tierId, tierName, tierPrice, customer } = req.body || {};
 
     // Validate input - check for undefined/null explicitly (foreningId can be 0)
     const missingFields = [];
@@ -106,6 +106,19 @@ router.post("/create-donation-session", async (req, res) => {
     if (!foreningNavn) missingFields.push("foreningNavn");
     if (!tierId) missingFields.push("tierId");
     if (tierPrice === undefined || tierPrice === null) missingFields.push("tierPrice");
+    
+    // Validate customer data
+    if (!customer) {
+      missingFields.push("customer");
+    } else {
+      if (!customer.email) missingFields.push("customer.email");
+      if (!customer.firstName) missingFields.push("customer.firstName");
+      if (!customer.lastName) missingFields.push("customer.lastName");
+      if (!customer.phone) missingFields.push("customer.phone");
+      if (!customer.address) missingFields.push("customer.address");
+      if (!customer.city) missingFields.push("customer.city");
+      if (!customer.postalCode) missingFields.push("customer.postalCode");
+    }
     
     if (missingFields.length > 0) {
       console.log("[create-donation-session] Missing fields:", missingFields, "Body was:", req.body);
@@ -129,7 +142,18 @@ router.post("/create-donation-session", async (req, res) => {
         tierId: tierId, // Single select - must match an existing option
         tierPrice: Number(tierPrice), // Number field in Airtable
         status: "pending", // Single select - must match an existing option
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        // Customer data
+        customerEmail: customer.email,
+        customerFirstName: customer.firstName,
+        customerLastName: customer.lastName,
+        customerPhone: customer.phone,
+        customerAddress: customer.address,
+        customerCity: customer.city,
+        customerPostalCode: customer.postalCode,
+        customerCountry: customer.country || "DK",
+        customerCompanyName: customer.companyName || null,
+        customerCvr: customer.cvr || null
       };
       console.log("[create-donation-session] Creating Airtable record with:", JSON.stringify(airtableData));
       
@@ -143,7 +167,7 @@ router.post("/create-donation-session", async (req, res) => {
       console.error("[create-donation-session] Airtable error stack:", err.stack);
     }
 
-    // Create Frisbii checkout session with our sessionId as subscription handle
+    // Create Frisbii checkout session with customer data
     let checkoutUrl = null;
     let frisbiiError = null;
     
@@ -154,10 +178,31 @@ router.post("/create-donation-session", async (req, res) => {
 
       console.log("[create-donation-session] Creating Frisbii session for plan:", tierId);
       
-      // Frisbii subscription session - subscription handle + plan
+      // Build create_customer object for Frisbii
+      const createCustomer = {
+        email: customer.email,
+        first_name: customer.firstName,
+        last_name: customer.lastName,
+        phone: `+45${customer.phone}`, // Add Danish country code
+        address: customer.address,
+        city: customer.city,
+        postal_code: customer.postalCode,
+        country: "DK"
+      };
+      
+      // Add optional company info if provided
+      if (customer.companyName) {
+        createCustomer.company = customer.companyName;
+      }
+      if (customer.cvr) {
+        createCustomer.vat = customer.cvr;
+      }
+      
+      // Frisbii subscription session with create_customer
       const frisbiiPayload = {
-        subscription: sessionId,  // Our session ID becomes the subscription handle
-        plan: tierId,             // The plan to subscribe to
+        subscription: sessionId,      // Our session ID becomes the subscription handle
+        plan: tierId,                 // The plan to subscribe to
+        create_customer: createCustomer,
         accept_url: process.env.ACCEPT_URL || "https://stotmedhjerte.dk/tak",
         cancel_url: process.env.CANCEL_URL || "https://stotmedhjerte.dk/stoetteabonnement"
       };
