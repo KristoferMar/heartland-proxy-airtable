@@ -178,18 +178,20 @@ router.post("/create-donation-session", async (req, res) => {
         throw new Error("FRISBII_PRIVATE_KEY not configured");
       }
 
-      console.log("[create-donation-session] Creating Frisbii session for plan:", tierId);
+      const authHeader = `Basic ${Buffer.from(process.env.FRISBII_PRIVATE_KEY + ":").toString("base64")}`;
       
       // Generate customer handle for tracking
       const customerHandle = `cust-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
       
+      console.log("[create-donation-session] Step 1: Creating pending subscription for plan:", tierId);
+      
       // Build create_customer object for Frisbii
       const createCustomer = {
-        handle: customerHandle,       // Unique customer identifier
+        handle: customerHandle,
         email: customer.email,
         first_name: customer.firstName,
         last_name: customer.lastName,
-        phone: `+45${customer.phone}`, // Add Danish country code
+        phone: `+45${customer.phone}`,
         address: customer.address,
         city: customer.city,
         postal_code: customer.postalCode,
@@ -204,35 +206,61 @@ router.post("/create-donation-session", async (req, res) => {
         createCustomer.vat = customer.cvr;
       }
       
-      // Frisbii subscription session with create_customer
-      const frisbiiPayload = {
-        subscription: sessionId,      // Our session ID becomes the subscription handle
+      // STEP 1: Create pending subscription with customer
+      const preparePayload = {
+        handle: sessionId,            // Our session ID becomes the subscription handle
         plan: tierId,                 // The plan to subscribe to
-        create_customer: createCustomer,
-        accept_url: process.env.ACCEPT_URL || "https://stotmedhjerte.dk/tak",
-        cancel_url: process.env.CANCEL_URL || "https://stotmedhjerte.dk/stoetteabonnement"
+        create_customer: createCustomer
       };
       
-      console.log("[create-donation-session] Frisbii payload:", JSON.stringify(frisbiiPayload));
+      console.log("[create-donation-session] Prepare payload:", JSON.stringify(preparePayload));
 
-      const frisbiiResponse = await fetch("https://checkout-api.frisbii.com/v1/session/subscription", {
+      const prepareResponse = await fetch("https://api.frisbii.com/v1/subscription", {
         method: "POST",
         headers: {
-          "Authorization": `Basic ${Buffer.from(process.env.FRISBII_PRIVATE_KEY + ":").toString("base64")}`,
+          "Authorization": authHeader,
           "Content-Type": "application/json",
           "Accept": "application/json"
         },
-        body: JSON.stringify(frisbiiPayload)
+        body: JSON.stringify(preparePayload)
       });
 
-      const frisbiiData = await frisbiiResponse.json();
-      console.log("[create-donation-session] Frisbii response:", JSON.stringify(frisbiiData));
+      const prepareData = await prepareResponse.json();
+      console.log("[create-donation-session] Prepare response:", JSON.stringify(prepareData));
 
-      if (!frisbiiResponse.ok) {
-        throw new Error(`Frisbii API error: ${frisbiiData.error || frisbiiData.message || JSON.stringify(frisbiiData)}`);
+      if (!prepareResponse.ok) {
+        throw new Error(`Frisbii prepare error: ${prepareData.error || prepareData.message || JSON.stringify(prepareData)}`);
       }
 
-      checkoutUrl = frisbiiData.url;
+      console.log("[create-donation-session] Step 2: Creating checkout session for subscription:", sessionId);
+      
+      // STEP 2: Create checkout session for that subscription
+      const sessionPayload = {
+        subscription: sessionId,
+        accept_url: process.env.ACCEPT_URL || "https://stotmedhjerte.dk/tak",
+        cancel_url: process.env.CANCEL_URL || "https://stotmedhjerte.dk/annulleret"
+      };
+      
+      console.log("[create-donation-session] Session payload:", JSON.stringify(sessionPayload));
+
+      const sessionResponse = await fetch("https://checkout-api.frisbii.com/v1/session/subscription", {
+        method: "POST",
+        headers: {
+          "Authorization": authHeader,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(sessionPayload)
+      });
+
+      const sessionData = await sessionResponse.json();
+      console.log("[create-donation-session] Session response:", JSON.stringify(sessionData));
+
+      if (!sessionResponse.ok) {
+        throw new Error(`Frisbii session error: ${sessionData.error || sessionData.message || JSON.stringify(sessionData)}`);
+      }
+
+      checkoutUrl = sessionData.url;
       console.log("[create-donation-session] ✅ Frisbii checkout URL:", checkoutUrl);
       
     } catch (err) {
