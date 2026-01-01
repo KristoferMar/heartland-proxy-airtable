@@ -107,7 +107,7 @@ router.post("/create-donation-session", async (req, res) => {
     const missingFields = [];
     if (foreningId === undefined || foreningId === null) missingFields.push("foreningId");
     if (!foreningNavn) missingFields.push("foreningNavn");
-    if (!foreningUuid) missingFields.push("foreningUuid");
+    // Note: foreningUuid is optional in case Airtable doesn't have it yet
     if (!tierId) missingFields.push("tierId");
     if (tierPrice === undefined || tierPrice === null) missingFields.push("tierPrice");
     
@@ -143,7 +143,7 @@ router.post("/create-donation-session", async (req, res) => {
         sessionId: sessionId,
         foreningId: Number(foreningId), // Number field in Airtable
         foreningNavn: foreningNavn,
-        association_uuid: foreningUuid, // Link to Forening table
+        association_uuid: foreningUuid || null, // Optional - will be null if not provided
         tierId: tierId, // Single select - must match an existing option
         tierPrice: Number(tierPrice), // Number field in Airtable
         status: "pending", // Single select - must match an existing option
