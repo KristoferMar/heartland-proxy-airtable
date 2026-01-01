@@ -154,16 +154,10 @@ router.post("/create-donation-session", async (req, res) => {
 
       console.log("[create-donation-session] Creating Frisbii session for plan:", tierId);
       
-      // Use /v1/session/recurring for NEW subscription signups
+      // Reepay Checkout API for subscription signup
       const frisbiiPayload = {
-        configuration: {
-          setup_intent: "auto"
-        },
-        create_subscription: {
-          handle: sessionId,  // Our unique session ID becomes the subscription handle
-          plan: tierId,       // The plan handle in Frisbii
-          generate_handle: false
-        },
+        plan: tierId,                    // Required: plan handle
+        subscription_handle: sessionId,  // Our session ID as subscription handle
         accept_url: process.env.ACCEPT_URL || "https://stotmedhjerte.dk/tak",
         cancel_url: process.env.CANCEL_URL || "https://stotmedhjerte.dk/stoetteabonnement"
       };
