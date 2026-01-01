@@ -210,6 +210,7 @@ router.post("/create-donation-session", async (req, res) => {
       const preparePayload = {
         handle: sessionId,            // Our session ID becomes the subscription handle
         plan: tierId,                 // The plan to subscribe to
+        signup_method: "link",        // Payment will be collected via checkout session
         create_customer: createCustomer
       };
       
