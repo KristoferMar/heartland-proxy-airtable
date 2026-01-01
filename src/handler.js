@@ -214,7 +214,9 @@ router.post("/create-donation-session", async (req, res) => {
         create_customer: createCustomer
       };
       
-      console.log("[create-donation-session] Prepare payload:", JSON.stringify(preparePayload));
+      console.log("[create-donation-session] ========== STEP 1: CREATE SUBSCRIPTION ==========");
+      console.log("[create-donation-session] URL: https://api.frisbii.com/v1/subscription");
+      console.log("[create-donation-session] Payload:", JSON.stringify(preparePayload, null, 2));
 
       const prepareResponse = await fetch("https://api.frisbii.com/v1/subscription", {
         method: "POST",
@@ -227,13 +229,17 @@ router.post("/create-donation-session", async (req, res) => {
       });
 
       const prepareData = await prepareResponse.json();
-      console.log("[create-donation-session] Prepare response:", JSON.stringify(prepareData));
+      console.log("[create-donation-session] Response status:", prepareResponse.status);
+      console.log("[create-donation-session] Response:", JSON.stringify(prepareData, null, 2));
 
       if (!prepareResponse.ok) {
+        console.error("[create-donation-session] ❌ Step 1 FAILED");
         throw new Error(`Frisbii prepare error: ${prepareData.error || prepareData.message || JSON.stringify(prepareData)}`);
       }
+      
+      console.log("[create-donation-session] ✅ Step 1 SUCCESS - Subscription created");
 
-      console.log("[create-donation-session] Step 2: Creating checkout session for subscription:", sessionId);
+      console.log("[create-donation-session] ========== STEP 2: CREATE CHECKOUT SESSION ==========");
       
       // STEP 2: Create checkout session for that subscription
       const sessionPayload = {
@@ -242,7 +248,8 @@ router.post("/create-donation-session", async (req, res) => {
         cancel_url: process.env.CANCEL_URL || "https://stotmedhjerte.dk/annulleret"
       };
       
-      console.log("[create-donation-session] Session payload:", JSON.stringify(sessionPayload));
+      console.log("[create-donation-session] URL: https://checkout-api.frisbii.com/v1/session/subscription");
+      console.log("[create-donation-session] Payload:", JSON.stringify(sessionPayload, null, 2));
 
       const sessionResponse = await fetch("https://checkout-api.frisbii.com/v1/session/subscription", {
         method: "POST",
@@ -255,25 +262,29 @@ router.post("/create-donation-session", async (req, res) => {
       });
 
       const sessionData = await sessionResponse.json();
-      console.log("[create-donation-session] Session response:", JSON.stringify(sessionData));
+      console.log("[create-donation-session] Response status:", sessionResponse.status);
+      console.log("[create-donation-session] Response:", JSON.stringify(sessionData, null, 2));
 
       if (!sessionResponse.ok) {
+        console.error("[create-donation-session] ❌ Step 2 FAILED");
         throw new Error(`Frisbii session error: ${sessionData.error || sessionData.message || JSON.stringify(sessionData)}`);
       }
 
       checkoutUrl = sessionData.url;
-      console.log("[create-donation-session] ✅ Frisbii checkout URL:", checkoutUrl);
+      console.log("[create-donation-session] ✅ Step 2 SUCCESS - Checkout session created");
+      console.log("[create-donation-session] ✅ CHECKOUT URL:", checkoutUrl);
       
     } catch (err) {
       frisbiiError = err.message || String(err);
-      console.error("[create-donation-session] Frisbii error:", frisbiiError);
+      console.error("[create-donation-session] ❌ FRISBII ERROR:", frisbiiError);
       
       // Fallback to static URL if Frisbii API fails
       checkoutUrl = process.env.FRISBII_CHECKOUT_URL || 
         "https://checkout.reepay.com/#/signup/24731b682aacd08c1c82da39fcbaf41e/stotteabonnement-manedlig";
-      console.log("[create-donation-session] Using fallback URL:", checkoutUrl);
+      console.log("[create-donation-session] ⚠️ Using fallback URL:", checkoutUrl);
     }
 
+    console.log("[create-donation-session] ========== RESPONSE ==========");
     res.json({ 
       success: true,
       sessionId: sessionId,
