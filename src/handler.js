@@ -117,18 +117,22 @@ router.post("/create-donation-session", async (req, res) => {
     // Generate unique session ID
     const sessionId = `di-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Store in Airtable
-    const createdRecord = await base("donationsessions").create({
-      sessionId: sessionId,
-      foreningId: foreningId,
-      foreningNavn: foreningNavn,
-      tierId: tierId,
-      tierPrice: tierPrice,
-      status: "pending",
-      createdAt: new Date().toISOString()
-    });
-
-    console.log("[create-donation-session] Created Airtable record:", createdRecord.id);
+    // Store in Airtable (try/catch to allow flow to continue even if Airtable fails)
+    try {
+      const createdRecord = await base("donationsessions").create({
+        sessionId: sessionId,
+        foreningId: String(foreningId), // Convert to string for Airtable
+        foreningNavn: foreningNavn,
+        tierId: tierId,
+        tierPrice: tierPrice,
+        status: "pending",
+        createdAt: new Date().toISOString()
+      });
+      console.log("[create-donation-session] Created Airtable record:", createdRecord.id);
+    } catch (airtableError) {
+      // Log the error but continue - we still want to redirect to checkout
+      console.error("[create-donation-session] Airtable error (continuing anyway):", airtableError.message);
+    }
 
     // TODO: Call Frisbii API to create subscription session
     // For now, return a placeholder URL
