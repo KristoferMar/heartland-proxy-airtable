@@ -1,0 +1,95 @@
+Type
+
+Airtable Record ID
+
+Anden type
+
+association_uuid
+
+bank_konto_nr
+
+bank_reg_nr
+
+creditro_case_id
+
+creditro_case_status
+
+creditro_external_id
+
+creditro_invitation_sent_at
+
+creditro_invitation_url
+
+creditro_last_checked_at
+
+creditro_verified
+
+Dato for aftale sendt
+
+Dato for underskrevet
+
+Document URL
+
+Flow status
+
+Forening - Accept af samtykkeerklæring
+
+Forening - By
+
+Forening - Coverbillede
+
+Forening - CVR-nummer
+
+Forening - Dato for oprettelse
+
+Forening - Indsamlingsmål (DKK)
+
+Forening - Kampagnebeskrivelse
+
+Forening - Kampagneoverskrift
+
+Forening - Kontaktperson mail
+
+Forening - Kontaktperson navn
+
+Forening - Kontaktperson tlf
+
+Forening - Logo
+
+Forening - Med slutdato (min. 30 dage)
+
+Forening - Postnummer
+
+Forening - Uden slutdato (løbende kampagne)
+
+Forening - Vælg dato
+
+Forening_adresse
+
+Foreningskategori
+
+Foreningsnavn
+
+Foreningstype
+
+grafisk_designpakke
+
+Hjertesag aktiv
+
+kyc_provider
+
+Offentlig kampagneside aktiv
+
+Part 2 status
+
+Samarbejdsaftale underskrevet
+
+Senest ændret
+
+SignRequest URL
+
+SignRequest UUID
+
+Skal vises på Hjertesager
+
+Slug / URL-sti

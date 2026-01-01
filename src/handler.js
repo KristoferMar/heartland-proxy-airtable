@@ -18,6 +18,8 @@ const allowlist = new Set([
   "http://127.0.0.1:5173",
 ]);
 
+app.use(express.json()); // Parse JSON bodies
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (origin && allowlist.has(origin)) {
@@ -70,6 +72,75 @@ router.get("/get-foreninger", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch Forening records" });
+  }
+});
+
+// Route: Create donation session
+router.post("/create-donation-session", async (req, res) => {
+  try {
+    const { foreningId, foreningNavn, tierId, tierPrice } = req.body;
+
+    // Validate input
+    if (!foreningId || !foreningNavn || !tierId || !tierPrice) {
+      return res.status(400).json({ 
+        error: "Missing required fields: foreningId, foreningNavn, tierId, tierPrice" 
+      });
+    }
+
+    // Generate unique session ID
+    const sessionId = `di-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Store in Airtable
+    const createdRecord = await base("donationsessions").create({
+      sessionId: sessionId,
+      foreningId: foreningId,
+      foreningNavn: foreningNavn,
+      tierId: tierId,
+      tierPrice: tierPrice,
+      status: "pending",
+      createdAt: new Date().toISOString()
+    });
+
+    console.log("[create-donation-session] Created Airtable record:", createdRecord.id);
+
+    // TODO: Call Frisbii API to create subscription session
+    // For now, return a placeholder URL
+    // Once you provide Frisbii credentials, we'll implement the actual API call
+    
+    const checkoutUrl = process.env.FRISBII_CHECKOUT_URL || 
+      "https://checkout.reepay.com/#/signup/24731b682aacd08c1c82da39fcbaf41e/stotteabonnement-manedlig";
+    
+    /*
+    // Future implementation:
+    const frisbiiResponse = await fetch("https://checkout-api.frisbii.com/v1/session/subscription", {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${Buffer.from(process.env.FRISBII_PRIVATE_KEY + ":").toString("base64")}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        subscription: {
+          handle: sessionId,
+          plan: tierId
+        },
+        accept_url: `${process.env.ACCEPT_URL}?session=${sessionId}`,
+        cancel_url: process.env.CANCEL_URL
+      })
+    });
+    
+    const frisbiiData = await frisbiiResponse.json();
+    const checkoutUrl = frisbiiData.url;
+    */
+
+    res.json({ 
+      success: true,
+      sessionId: sessionId,
+      checkoutUrl: checkoutUrl
+    });
+
+  } catch (err) {
+    console.error("[create-donation-session] Error:", err);
+    res.status(500).json({ error: "Failed to create donation session" });
   }
 });
 
