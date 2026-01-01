@@ -31,18 +31,21 @@ exports.handler = async (event, context) => {
         eventType === "invoice_authorized" || 
         eventType === "invoice_settled") {
       
-      const subscription = payload.subscription || {};
+      // Frisbii sends subscription as a STRING (the handle) not an object
+      const subscriptionHandle = typeof payload.subscription === 'string' 
+        ? payload.subscription 
+        : (payload.subscription?.handle || payload.subscription?.id);
+      
       const customer = payload.customer || {};
       const invoice = payload.invoice || {};
       
-      console.log("[frisbii-webhook] Subscription:", JSON.stringify(subscription));
+      console.log("[frisbii-webhook] Subscription handle:", subscriptionHandle);
       console.log("[frisbii-webhook] Customer:", JSON.stringify(customer));
       console.log("[frisbii-webhook] Customer email:", customer.email);
 
       // Try to find by subscription handle first (this should always work with dynamic sessions)
       let records = [];
       let matchMethod = null;
-      const subscriptionHandle = subscription.handle;
       
       if (subscriptionHandle && subscriptionHandle.startsWith("di-")) {
         // Our session IDs start with "di-"
@@ -97,10 +100,8 @@ exports.handler = async (event, context) => {
       }
 
       // Add Frisbii subscription handle/id if available
-      if (subscription.handle) {
-        updateData.frisbiiSubscriptionHandle = subscription.handle;
-      } else if (subscription.id) {
-        updateData.frisbiiSubscriptionHandle = subscription.id;
+      if (subscriptionHandle) {
+        updateData.frisbiiSubscriptionHandle = subscriptionHandle;
       }
 
       // Update the record
