@@ -15,7 +15,11 @@ const base = new Airtable({
 const allowlist = new Set([
   "https://stotmedhjerte.dk",
   "http://localhost:5173",
+  "http://localhost:5174",
   "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
 ]);
 
 app.use(express.json()); // Parse JSON bodies
