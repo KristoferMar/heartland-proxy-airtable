@@ -19,8 +19,9 @@ exports.handler = async (event, context) => {
     // Parse webhook payload
     const payload = JSON.parse(event.body);
     
-    console.log("[frisbii-webhook] Received event:", payload.event_type);
-    console.log("[frisbii-webhook] Payload:", JSON.stringify(payload, null, 2));
+    console.log("[frisbii-webhook] ========== WEBHOOK RECEIVED ==========");
+    console.log("[frisbii-webhook] Event type:", payload.event_type);
+    console.log("[frisbii-webhook] Full payload:", JSON.stringify(payload, null, 2));
 
     // Handle different webhook event types
     const eventType = payload.event_type;
@@ -30,39 +31,59 @@ exports.handler = async (event, context) => {
         eventType === "invoice_authorized" || 
         eventType === "invoice_settled") {
       
-      const subscription = payload.subscription;
-      const customer = payload.customer;
-      const invoice = payload.invoice;
+      const subscription = payload.subscription || {};
+      const customer = payload.customer || {};
+      const invoice = payload.invoice || {};
       
-      if (!subscription || !subscription.handle) {
-        console.error("[frisbii-webhook] No subscription handle in payload");
-        return {
-          statusCode: 400,
-          body: JSON.stringify({ error: "Missing subscription handle" })
-        };
+      console.log("[frisbii-webhook] Subscription:", JSON.stringify(subscription));
+      console.log("[frisbii-webhook] Customer:", JSON.stringify(customer));
+      console.log("[frisbii-webhook] Customer email:", customer.email);
+
+      // Try to find by subscription handle first (this should always work with dynamic sessions)
+      let records = [];
+      let matchMethod = null;
+      const subscriptionHandle = subscription.handle;
+      
+      if (subscriptionHandle && subscriptionHandle.startsWith("di-")) {
+        // Our session IDs start with "di-"
+        console.log("[frisbii-webhook] Looking up by sessionId:", subscriptionHandle);
+        records = await base("donationsessions")
+          .select({
+            filterByFormula: `{sessionId} = '${subscriptionHandle}'`,
+            maxRecords: 1
+          })
+          .firstPage();
+        matchMethod = "sessionId";
+      }
+      
+      // Fallback: if not found by handle (shouldn't happen with proper setup)
+      if (records.length === 0 && subscriptionHandle) {
+        console.log("[frisbii-webhook] No match by di- handle, trying raw handle:", subscriptionHandle);
+        records = await base("donationsessions")
+          .select({
+            filterByFormula: `{sessionId} = '${subscriptionHandle}'`,
+            maxRecords: 1
+          })
+          .firstPage();
+        matchMethod = "raw-handle";
       }
 
-      const sessionId = subscription.handle;
-      console.log("[frisbii-webhook] Looking up session:", sessionId);
-
-      // Find the donation session in Airtable
-      const records = await base("donationsessions")
-        .select({
-          filterByFormula: `{sessionId} = '${sessionId}'`,
-          maxRecords: 1
-        })
-        .firstPage();
-
       if (records.length === 0) {
-        console.error("[frisbii-webhook] Session not found:", sessionId);
+        console.log("[frisbii-webhook] No pending sessions found");
+        // Still return 200 to prevent Frisbii from retrying
         return {
-          statusCode: 404,
-          body: JSON.stringify({ error: "Session not found" })
+          statusCode: 200,
+          body: JSON.stringify({ 
+            success: false,
+            message: "No pending session found to activate",
+            eventType: eventType
+          })
         };
       }
 
       const record = records[0];
-      console.log("[frisbii-webhook] Found record:", record.id);
+      console.log("[frisbii-webhook] Found record:", record.id, "via", matchMethod);
+      console.log("[frisbii-webhook] Record fields:", JSON.stringify(record.fields));
 
       // Prepare update data
       const updateData = {
@@ -71,19 +92,22 @@ exports.handler = async (event, context) => {
       };
 
       // Add customer email if available
-      if (customer && customer.email) {
+      if (customer.email) {
         updateData.customerEmail = customer.email;
       }
 
-      // Add Frisbii subscription ID if available
-      if (subscription.id) {
+      // Add Frisbii subscription handle/id if available
+      if (subscription.handle) {
+        updateData.frisbiiSubscriptionHandle = subscription.handle;
+      } else if (subscription.id) {
         updateData.frisbiiSubscriptionHandle = subscription.id;
       }
 
       // Update the record
       await base("donationsessions").update(record.id, updateData);
       
-      console.log("[frisbii-webhook] Updated record:", record.id, updateData);
+      console.log("[frisbii-webhook] ✅ Updated record:", record.id);
+      console.log("[frisbii-webhook] Update data:", JSON.stringify(updateData));
       console.log("[frisbii-webhook] Donation for forening:", record.fields.foreningNavn);
 
       return {
@@ -91,7 +115,8 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ 
           success: true,
           message: "Webhook processed successfully",
-          sessionId: sessionId,
+          matchMethod: matchMethod,
+          recordId: record.id,
           forening: record.fields.foreningNavn
         })
       };
@@ -110,10 +135,12 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error("[frisbii-webhook] Error:", error);
+    console.error("[frisbii-webhook] ❌ Error:", error.message);
+    console.error("[frisbii-webhook] Stack:", error.stack);
     
+    // Return 200 even on error to prevent Frisbii from retrying
     return {
-      statusCode: 500,
+      statusCode: 200,
       body: JSON.stringify({ 
         error: "Internal server error",
         message: error.message 

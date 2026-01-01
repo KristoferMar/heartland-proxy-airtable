@@ -143,41 +143,66 @@ router.post("/create-donation-session", async (req, res) => {
       console.error("[create-donation-session] Airtable error stack:", err.stack);
     }
 
-    // TODO: Call Frisbii API to create subscription session
-    // For now, return a placeholder URL
-    // Once you provide Frisbii credentials, we'll implement the actual API call
+    // Create Frisbii checkout session with our sessionId as subscription handle
+    let checkoutUrl = null;
+    let frisbiiError = null;
     
-    const checkoutUrl = process.env.FRISBII_CHECKOUT_URL || 
-      "https://checkout.reepay.com/#/signup/24731b682aacd08c1c82da39fcbaf41e/stotteabonnement-manedlig";
-    
-    /*
-    // Future implementation:
-    const frisbiiResponse = await fetch("https://checkout-api.frisbii.com/v1/session/subscription", {
-      method: "POST",
-      headers: {
-        "Authorization": `Basic ${Buffer.from(process.env.FRISBII_PRIVATE_KEY + ":").toString("base64")}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
+    try {
+      if (!process.env.FRISBII_PRIVATE_KEY) {
+        throw new Error("FRISBII_PRIVATE_KEY not configured");
+      }
+
+      console.log("[create-donation-session] Creating Frisbii session for plan:", tierId);
+      
+      const frisbiiPayload = {
         subscription: {
-          handle: sessionId,
-          plan: tierId
+          handle: sessionId, // This links the subscription to our session!
+          plan: tierId,      // The plan handle in Frisbii (e.g., "hjerteholder-100")
+          generate_handle: false
         },
-        accept_url: `${process.env.ACCEPT_URL}?session=${sessionId}`,
-        cancel_url: process.env.CANCEL_URL
-      })
-    });
-    
-    const frisbiiData = await frisbiiResponse.json();
-    const checkoutUrl = frisbiiData.url;
-    */
+        accept_url: process.env.ACCEPT_URL || "https://stotmedhjerte.dk/tak",
+        cancel_url: process.env.CANCEL_URL || "https://stotmedhjerte.dk/stoetteabonnement"
+      };
+      
+      console.log("[create-donation-session] Frisbii payload:", JSON.stringify(frisbiiPayload));
+
+      const frisbiiResponse = await fetch("https://checkout-api.reepay.com/v1/session/subscription", {
+        method: "POST",
+        headers: {
+          "Authorization": `Basic ${Buffer.from(process.env.FRISBII_PRIVATE_KEY + ":").toString("base64")}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(frisbiiPayload)
+      });
+
+      const frisbiiData = await frisbiiResponse.json();
+      console.log("[create-donation-session] Frisbii response:", JSON.stringify(frisbiiData));
+
+      if (!frisbiiResponse.ok) {
+        throw new Error(`Frisbii API error: ${frisbiiData.error || frisbiiData.message || JSON.stringify(frisbiiData)}`);
+      }
+
+      checkoutUrl = frisbiiData.url;
+      console.log("[create-donation-session] ✅ Frisbii checkout URL:", checkoutUrl);
+      
+    } catch (err) {
+      frisbiiError = err.message || String(err);
+      console.error("[create-donation-session] Frisbii error:", frisbiiError);
+      
+      // Fallback to static URL if Frisbii API fails
+      checkoutUrl = process.env.FRISBII_CHECKOUT_URL || 
+        "https://checkout.reepay.com/#/signup/24731b682aacd08c1c82da39fcbaf41e/stotteabonnement-manedlig";
+      console.log("[create-donation-session] Using fallback URL:", checkoutUrl);
+    }
 
     res.json({ 
       success: true,
       sessionId: sessionId,
       checkoutUrl: checkoutUrl,
       airtableRecordId: airtableRecordId,
-      airtableError: airtableError
+      airtableError: airtableError,
+      frisbiiError: frisbiiError
     });
 
   } catch (err) {
