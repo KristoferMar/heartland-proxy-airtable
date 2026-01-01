@@ -117,7 +117,10 @@ router.post("/create-donation-session", async (req, res) => {
     // Generate unique session ID
     const sessionId = `di-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Store in Airtable (try/catch to allow flow to continue even if Airtable fails)
+    // Store in Airtable
+    let airtableRecordId = null;
+    let airtableError = null;
+    
     try {
       const airtableData = {
         sessionId: sessionId,
@@ -131,11 +134,13 @@ router.post("/create-donation-session", async (req, res) => {
       console.log("[create-donation-session] Creating Airtable record with:", JSON.stringify(airtableData));
       
       const createdRecord = await base("donationsessions").create(airtableData);
-      console.log("[create-donation-session] Created Airtable record:", createdRecord.id);
-    } catch (airtableError) {
+      airtableRecordId = createdRecord.id;
+      console.log("[create-donation-session] Created Airtable record:", airtableRecordId);
+    } catch (err) {
       // Log the full error details
-      console.error("[create-donation-session] Airtable error:", airtableError.message);
-      console.error("[create-donation-session] Airtable error details:", JSON.stringify(airtableError));
+      airtableError = err.message || String(err);
+      console.error("[create-donation-session] Airtable error:", airtableError);
+      console.error("[create-donation-session] Airtable error stack:", err.stack);
     }
 
     // TODO: Call Frisbii API to create subscription session
@@ -170,7 +175,9 @@ router.post("/create-donation-session", async (req, res) => {
     res.json({ 
       success: true,
       sessionId: sessionId,
-      checkoutUrl: checkoutUrl
+      checkoutUrl: checkoutUrl,
+      airtableRecordId: airtableRecordId,
+      airtableError: airtableError
     });
 
   } catch (err) {
