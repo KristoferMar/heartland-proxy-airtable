@@ -154,12 +154,10 @@ router.post("/create-donation-session", async (req, res) => {
 
       console.log("[create-donation-session] Creating Frisbii session for plan:", tierId);
       
+      // Reepay API expects 'subscription' as string handle, 'plan' at root level
       const frisbiiPayload = {
-        subscription: {
-          handle: sessionId, // This links the subscription to our session!
-          plan: tierId,      // The plan handle in Frisbii (e.g., "hjerteholder-100")
-          generate_handle: false
-        },
+        subscription: sessionId,  // String handle that links to our session
+        plan: tierId,             // The plan handle in Frisbii
         accept_url: process.env.ACCEPT_URL || "https://stotmedhjerte.dk/tak",
         cancel_url: process.env.CANCEL_URL || "https://stotmedhjerte.dk/stoetteabonnement"
       };
