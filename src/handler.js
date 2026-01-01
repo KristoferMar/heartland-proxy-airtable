@@ -22,9 +22,14 @@ app.use(express.json()); // Parse JSON bodies
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  console.log("[CORS] Request from origin:", origin, "Method:", req.method, "Path:", req.path);
+  
   if (origin && allowlist.has(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Vary", "Origin"); 
+  } else if (origin) {
+    // For debugging - allow all origins temporarily or add missing ones
+    console.log("[CORS] Origin not in allowlist:", origin);
   }
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -78,12 +83,21 @@ router.get("/get-foreninger", async (req, res) => {
 // Route: Create donation session
 router.post("/create-donation-session", async (req, res) => {
   try {
-    const { foreningId, foreningNavn, tierId, tierPrice } = req.body;
+    console.log("[create-donation-session] Request body:", JSON.stringify(req.body));
+    
+    const { foreningId, foreningNavn, tierId, tierPrice } = req.body || {};
 
-    // Validate input
-    if (!foreningId || !foreningNavn || !tierId || !tierPrice) {
+    // Validate input - check for undefined/null explicitly (foreningId can be 0)
+    const missingFields = [];
+    if (foreningId === undefined || foreningId === null) missingFields.push("foreningId");
+    if (!foreningNavn) missingFields.push("foreningNavn");
+    if (!tierId) missingFields.push("tierId");
+    if (tierPrice === undefined || tierPrice === null) missingFields.push("tierPrice");
+    
+    if (missingFields.length > 0) {
+      console.log("[create-donation-session] Missing fields:", missingFields, "Body was:", req.body);
       return res.status(400).json({ 
-        error: "Missing required fields: foreningId, foreningNavn, tierId, tierPrice" 
+        error: `Missing required fields: ${missingFields.join(", ")}` 
       });
     }
 
