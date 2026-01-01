@@ -180,8 +180,12 @@ router.post("/create-donation-session", async (req, res) => {
 
       console.log("[create-donation-session] Creating Frisbii session for plan:", tierId);
       
+      // Generate customer handle for tracking
+      const customerHandle = `cust-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+      
       // Build create_customer object for Frisbii
       const createCustomer = {
+        handle: customerHandle,       // Unique customer identifier
         email: customer.email,
         first_name: customer.firstName,
         last_name: customer.lastName,
