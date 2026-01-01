@@ -244,8 +244,8 @@ router.post("/create-donation-session", async (req, res) => {
       // STEP 2: Create checkout session for that subscription
       const sessionPayload = {
         subscription: sessionId,
-        accept_url: process.env.ACCEPT_URL || "https://stotmedhjerte.dk/tak",
-        cancel_url: process.env.CANCEL_URL || "https://stotmedhjerte.dk/annulleret"
+        accept_url: process.env.ACCEPT_URL || "https://stotmedhjerte.dk/pages/tak-for-din-stotte",
+        cancel_url: process.env.CANCEL_URL || "https://stotmedhjerte.dk/stoetteabonnement"
       };
       
       console.log("[create-donation-session] URL: https://checkout-api.frisbii.com/v1/session/subscription");
