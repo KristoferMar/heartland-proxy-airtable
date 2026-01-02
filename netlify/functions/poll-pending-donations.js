@@ -70,31 +70,21 @@ exports.handler = async (event, context) => {
         }
         
         const subscriptionData = await subscriptionResponse.json();
-        // API returns a single object when querying by handle in path
         const subscription = subscriptionData;
-        console.log(`[poll-pending-donations] Subscription status: ${subscription.state || 'unknown'}`);
+        console.log(`[poll-pending-donations] Subscription state: ${subscription.state || 'unknown'}`);
         
-        // Check if subscription has authorized/settled invoices
-        const invoices = subscription.invoices || [];
-        console.log(`[poll-pending-donations] Found ${invoices.length} invoices`);
-        
+        // Frisbii confirmed: state="active" definitively means payment was collected
         let paymentConfirmed = false;
-        let confirmedInvoice = null;
         
-        for (const invoice of invoices) {
-          console.log(`[poll-pending-donations]   Invoice ${invoice.id}: state=${invoice.state}`);
-          
-          // Check if invoice is authorized or settled
-          if (invoice.state === "authorized" || invoice.state === "settled") {
-            paymentConfirmed = true;
-            confirmedInvoice = invoice;
-            console.log(`[poll-pending-donations] ✅ Payment confirmed! Invoice ${invoice.id} is ${invoice.state}`);
-            break;
-          }
+        if (subscription.state === "active") {
+          paymentConfirmed = true;
+          console.log(`[poll-pending-donations] ✅ Payment confirmed! Subscription is active`);
+        } else {
+          console.log(`[poll-pending-donations] ⏳ Waiting for activation. Current state: ${subscription.state}`);
         }
         
         // Update Airtable if payment is confirmed
-        if (paymentConfirmed && confirmedInvoice) {
+        if (paymentConfirmed) {
           const updateData = {
             status: "active",
             activatedAt: new Date().toISOString(),
@@ -104,15 +94,14 @@ exports.handler = async (event, context) => {
           await base("donationsessions").update(record.id, updateData);
           
           console.log(`[poll-pending-donations] ✅ Updated ${record.id} to 'active'`);
-          console.log(`[poll-pending-donations]    Invoice: ${confirmedInvoice.id} (${confirmedInvoice.state})`);
+          console.log(`[poll-pending-donations]    Subscription: ${sessionId} (${subscription.state})`);
           console.log(`[poll-pending-donations]    Forening: ${foreningNavn}`);
           
           updatedCount++;
           updates.push({
             recordId: record.id,
             sessionId: sessionId,
-            invoiceId: confirmedInvoice.id,
-            invoiceState: confirmedInvoice.state,
+            subscriptionState: subscription.state,
             forening: foreningNavn
           });
         } else {
