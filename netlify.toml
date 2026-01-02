@@ -5,6 +5,11 @@
   external_node_modules = ["express", "airtable", "serverless-http"]
   node_bundler = "esbuild"
 
+# Scheduled function: Poll pending donations every 5 minutes
+[[functions]]
+  path = "/poll-pending-donations"
+  schedule = "*/5 * * * *"
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/airtable/:splat"
