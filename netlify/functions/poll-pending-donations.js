@@ -49,9 +49,9 @@ exports.handler = async (event, context) => {
       console.log(`[poll-pending-donations] Checking: ${sessionId} (${foreningNavn})`);
       
       try {
-        // Query Frisbii API to get subscription details
+        // Query Frisbii API to get subscription details by handle
         const subscriptionResponse = await fetch(
-          `https://api.frisbii.com/v1/subscription/${sessionId}`,
+          `https://api.frisbii.com/v1/subscription?handle=${sessionId}`,
           {
             method: "GET",
             headers: {
@@ -63,11 +63,14 @@ exports.handler = async (event, context) => {
         );
         
         if (!subscriptionResponse.ok) {
-          console.error(`[poll-pending-donations] ❌ Failed to fetch subscription ${sessionId}:`, subscriptionResponse.status);
+          const errorBody = await subscriptionResponse.text();
+          console.error(`[poll-pending-donations] ❌ Failed to fetch subscription ${sessionId}:`, subscriptionResponse.status, errorBody);
           continue;
         }
         
-        const subscription = await subscriptionResponse.json();
+        const subscriptionData = await subscriptionResponse.json();
+        // API returns array when querying by handle
+        const subscription = Array.isArray(subscriptionData) ? subscriptionData[0] : subscriptionData;
         console.log(`[poll-pending-donations] Subscription status: ${subscription.state || 'unknown'}`);
         
         // Check if subscription has authorized/settled invoices
