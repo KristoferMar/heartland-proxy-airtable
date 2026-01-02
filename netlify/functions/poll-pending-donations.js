@@ -9,7 +9,8 @@ const base = new Airtable({
 
 // Get Frisbii API credentials
 const FRISBII_PRIVATE_KEY = process.env.FRISBII_PRIVATE_KEY;
-const authHeader = `Bearer ${FRISBII_PRIVATE_KEY}`;
+// Basic auth: base64 encode "private_key:" (with colon, no password)
+const authHeader = `Basic ${Buffer.from(`${FRISBII_PRIVATE_KEY}:`).toString('base64')}`;
 
 exports.handler = async (event, context) => {
   console.log("[poll-pending-donations] ========== POLLING STARTED ==========");
