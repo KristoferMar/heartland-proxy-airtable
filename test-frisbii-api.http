@@ -1,0 +1,30 @@
+### Frisbii API Testing
+### Use REST Client extension in VS Code
+
+@privateKey = {{$dotenv FRISBII_PRIVATE_KEY}}
+@authHeader = Basic {{$dotenv FRISBII_PRIVATE_KEY}}:
+
+### Test 1: Get subscription by handle (query parameter)
+GET https://api.frisbii.com/v1/subscription?handle=di-1767311073666-y0iyyulhx
+Authorization: Basic {{$dotenv FRISBII_PRIVATE_KEY}}:
+Accept: application/json
+
+### Test 2: Get subscription by handle as path parameter
+GET https://api.frisbii.com/v1/subscription/di-1767311073666-y0iyyulhx
+Authorization: Basic {{$dotenv FRISBII_PRIVATE_KEY}}:
+Accept: application/json
+
+### Test 3: List all subscriptions
+GET https://api.frisbii.com/v1/subscription/list
+Authorization: Basic {{$dotenv FRISBII_PRIVATE_KEY}}:
+Accept: application/json
+
+### Test 4: Get subscription by customer handle
+GET https://api.frisbii.com/v1/subscription?customer=cust-1767311074355-29gczj
+Authorization: Basic {{$dotenv FRISBII_PRIVATE_KEY}}:
+Accept: application/json
+
+### Test 5: Search subscriptions with filter
+GET https://api.frisbii.com/v1/subscription/search?filter=di-1767311073666-y0iyyulhx
+Authorization: Basic {{$dotenv FRISBII_PRIVATE_KEY}}:
+Accept: application/json
