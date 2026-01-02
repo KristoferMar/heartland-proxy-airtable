@@ -1,0 +1,154 @@
+// netlify/functions/poll-pending-donations.js
+// Scheduled function: Polls Frisbii API to confirm pending donations
+
+const Airtable = require("airtable");
+
+const base = new Airtable({
+  apiKey: process.env.AIRTABLE_API_KEY
+}).base(process.env.AIRTABLE_BASE_ID);
+
+// Get Frisbii API credentials
+const FRISBII_PRIVATE_KEY = process.env.FRISBII_PRIVATE_KEY;
+const authHeader = `Bearer ${FRISBII_PRIVATE_KEY}`;
+
+exports.handler = async (event, context) => {
+  console.log("[poll-pending-donations] ========== POLLING STARTED ==========");
+  console.log("[poll-pending-donations] Time:", new Date().toISOString());
+  
+  try {
+    // Find all pending donations
+    const pendingRecords = await base("donationsessions")
+      .select({
+        filterByFormula: "{status} = 'pending'",
+        maxRecords: 100
+      })
+      .all();
+    
+    console.log(`[poll-pending-donations] Found ${pendingRecords.length} pending donations`);
+    
+    if (pendingRecords.length === 0) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: true,
+          message: "No pending donations to check",
+          checked: 0,
+          updated: 0
+        })
+      };
+    }
+    
+    let updatedCount = 0;
+    const updates = [];
+    
+    // Check each pending donation
+    for (const record of pendingRecords) {
+      const sessionId = record.fields.sessionId;
+      const foreningNavn = record.fields.foreningNavn;
+      
+      console.log(`[poll-pending-donations] Checking: ${sessionId} (${foreningNavn})`);
+      
+      try {
+        // Query Frisbii API to get subscription details
+        const subscriptionResponse = await fetch(
+          `https://api.frisbii.com/v1/subscription/${sessionId}`,
+          {
+            method: "GET",
+            headers: {
+              "Authorization": authHeader,
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            }
+          }
+        );
+        
+        if (!subscriptionResponse.ok) {
+          console.error(`[poll-pending-donations] ❌ Failed to fetch subscription ${sessionId}:`, subscriptionResponse.status);
+          continue;
+        }
+        
+        const subscription = await subscriptionResponse.json();
+        console.log(`[poll-pending-donations] Subscription status: ${subscription.state || 'unknown'}`);
+        
+        // Check if subscription has authorized/settled invoices
+        const invoices = subscription.invoices || [];
+        console.log(`[poll-pending-donations] Found ${invoices.length} invoices`);
+        
+        let paymentConfirmed = false;
+        let confirmedInvoice = null;
+        
+        for (const invoice of invoices) {
+          console.log(`[poll-pending-donations]   Invoice ${invoice.id}: state=${invoice.state}`);
+          
+          // Check if invoice is authorized or settled
+          if (invoice.state === "authorized" || invoice.state === "settled") {
+            paymentConfirmed = true;
+            confirmedInvoice = invoice;
+            console.log(`[poll-pending-donations] ✅ Payment confirmed! Invoice ${invoice.id} is ${invoice.state}`);
+            break;
+          }
+        }
+        
+        // Update Airtable if payment is confirmed
+        if (paymentConfirmed && confirmedInvoice) {
+          const updateData = {
+            status: "active",
+            activatedAt: new Date().toISOString(),
+            frisbiiSubscriptionHandle: sessionId
+          };
+          
+          await base("donationsessions").update(record.id, updateData);
+          
+          console.log(`[poll-pending-donations] ✅ Updated ${record.id} to 'active'`);
+          console.log(`[poll-pending-donations]    Invoice: ${confirmedInvoice.id} (${confirmedInvoice.state})`);
+          console.log(`[poll-pending-donations]    Forening: ${foreningNavn}`);
+          
+          updatedCount++;
+          updates.push({
+            recordId: record.id,
+            sessionId: sessionId,
+            invoiceId: confirmedInvoice.id,
+            invoiceState: confirmedInvoice.state,
+            forening: foreningNavn
+          });
+        } else {
+          console.log(`[poll-pending-donations] ⏳ No confirmed payment yet for ${sessionId}`);
+        }
+        
+      } catch (err) {
+        console.error(`[poll-pending-donations] ❌ Error checking ${sessionId}:`, err.message);
+        // Continue with next record
+      }
+    }
+    
+    console.log(`[poll-pending-donations] ========== POLLING COMPLETE ==========`);
+    console.log(`[poll-pending-donations] Checked: ${pendingRecords.length}, Updated: ${updatedCount}`);
+    
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        success: true,
+        message: "Polling completed successfully",
+        checked: pendingRecords.length,
+        updated: updatedCount,
+        updates: updates
+      })
+    };
+    
+  } catch (error) {
+    console.error("[poll-pending-donations] ❌ FATAL ERROR:", error.message);
+    console.error("[poll-pending-donations] Stack:", error.stack);
+    
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        success: false,
+        error: "Polling failed",
+        message: error.message
+      })
+    };
+  }
+};
+
+// Schedule to run every 5 minutes
+exports.handler.schedule = "@every 5m";
