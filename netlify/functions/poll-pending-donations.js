@@ -13,6 +13,11 @@ const FRISBII_PRIVATE_KEY = process.env.FRISBII_PRIVATE_KEY;
 const authHeader = `Basic ${Buffer.from(`${FRISBII_PRIVATE_KEY}:`).toString('base64')}`;
 
 exports.handler = async (event, context) => {
+  // Verify this is a scheduled invocation
+  if (event.headers && event.headers["x-netlify-trigger"]) {
+    console.log("[poll-pending-donations] Triggered by:", event.headers["x-netlify-trigger"]);
+  }
+  
   console.log("[poll-pending-donations] ========== POLLING STARTED ==========");
   console.log("[poll-pending-donations] Time:", new Date().toISOString());
   
@@ -142,6 +147,3 @@ exports.handler = async (event, context) => {
     };
   }
 };
-
-// Schedule to run every 5 minutes
-exports.handler.schedule = "@every 5m";
